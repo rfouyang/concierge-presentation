@@ -1,0 +1,20 @@
+[project]
+name = "concierge-presentation"
+version = "0.1.0"
+description = "用 REST 接口和网页界面控制一份固定的 PowerPoint 放映"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "gradio>=5.0.0",
+    "httpx>=0.27.0",
+    "python-dotenv>=1.0.0",
+    "python-pptx>=1.0.0",
+    "pywin32>=306",
+    "uvicorn>=0.30.0",
+]
+
+[tool.uv]
+package = false
+# 与 meeting-notes 一致：用真实的 Python 安装建 venv，而不是 uv 下载的那个。
+# 托管 Python 会让 .venv/Scripts/python.exe 变成 uv trampoline，PyCharm 认不出来。
+python-preference = "only-system"

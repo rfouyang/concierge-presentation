@@ -1,0 +1,11 @@
+# 复制成 .env 后按自己的路径改。
+
+# 要控制的那份 ppt。绝对路径，或相对于项目根目录的路径。
+DECK_PATH=data/deck/demo.pptx
+
+# 服务监听地址。机器人和网页界面都连这里。
+HOST=127.0.0.1
+PORT=8000
+
+# 放映投到第几块屏，编号见 GET /api/monitors。留空就是主屏。
+MONITOR=

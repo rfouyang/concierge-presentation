@@ -1,0 +1,3 @@
+from component.presentation_application import PresentationApplication
+
+presentation_context = PresentationApplication()
