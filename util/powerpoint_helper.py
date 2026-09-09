@@ -21,13 +21,16 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
+import ctypes
 import time
 
 import pythoncom
+import pywintypes
 import win32api
 import win32com.client
 import win32con
 import win32gui
+import win32process
 
 from config.settings import PathConfig, SlideShowConfig, use_utf8_output
 
@@ -96,16 +99,42 @@ class PowerPointHelper:
         """放映窗口是不是当前前台窗口。"""
         return win32gui.GetForegroundWindow() == self.show_hwnd()
 
-    def focus(self) -> None:
-        """把放映窗口提到最前面。
+    def focus(self) -> bool:
+        """把放映窗口提到最前面，返回最后是否真的在前台。
 
         Run() 之后放映窗口并不一定在前台 —— 谁在前台就还是谁，放映就被盖住了。
-        实测三种手段里只有 SetForegroundWindow 有效：SlideShowWindow.Activate()
-        毫无反应，SetWindowPos(HWND_TOPMOST) 连 WS_EX_TOPMOST 都置不上。
+        SlideShowWindow.Activate() 毫无反应，所以只能走 Win32。
+
+        麻烦在于 SetForegroundWindow 受 Windows 前台锁约束：不持有前台的进程
+        调它会直接失败（错误码 0，没有错误文本）。从控制台跑脚本时它能成功，
+        但从 uvicorn 的工作线程调就被拒 —— 这是本项目唯一需要降级的地方，所以
+        这里破例带一个 except：先借当前前台窗口所在线程的权限抢，抢不到就用
+        SwitchToThisWindow 兜底（半公开 API，不受前台锁约束）。
         """
         handle = self.show_hwnd()
-        win32gui.ShowWindow(handle, win32con.SW_SHOW)
-        win32gui.SetForegroundWindow(handle)
+        win32gui.ShowWindow(handle, win32con.SW_RESTORE)
+        try:
+            self._steal_foreground(handle)
+        except pywintypes.error:
+            pass
+        # 判断依据是结果而不是有没有报错：放映刚起来那一刻，SetForegroundWindow
+        # 常常既不报错也没抢到。
+        if not self.foreground:
+            ctypes.windll.user32.SwitchToThisWindow(handle, True)
+        return self.foreground
+
+    @staticmethod
+    def _steal_foreground(handle: int) -> None:
+        """把本线程挂到前台窗口的线程上，借它的前台资格再抢。"""
+        foreground = win32gui.GetForegroundWindow()
+        target_thread, _ = win32process.GetWindowThreadProcessId(foreground)
+        own_thread = win32api.GetCurrentThreadId()
+        win32process.AttachThreadInput(target_thread, own_thread, True)
+        try:
+            win32gui.BringWindowToTop(handle)
+            win32gui.SetForegroundWindow(handle)
+        finally:
+            win32process.AttachThreadInput(target_thread, own_thread, False)
 
     # ---- 显示器 -----------------------------------------------------------
 

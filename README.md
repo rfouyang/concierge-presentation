@@ -85,13 +85,21 @@ PowerPoint 会自己把幻灯片和备注面板分到两块屏上，指定的那
 `/api/monitor` 都会自动把它提到最前，被盖住时再调 `POST /api/focus` 提一次，
 `/api/status` 的 `foreground` 字段能看出当前是不是被盖着。
 
-实测过三种手段，只有一种有效：
+难点是 Windows 的**前台锁**：不持有前台的进程调 `SetForegroundWindow` 会被直接
+拒绝（`pywintypes.error: (0, 'SetForegroundWindow', ...)`，没有错误文本）。从控制台
+跑脚本时它能成功，但从 uvicorn 的工作线程调就失败 —— 而这正是服务的运行方式。
 
-| 手段 | 结果 |
-|---|---|
-| `SlideShowWindow.Activate()` | 无反应 |
-| `SetWindowPos(HWND_TOPMOST)` | 不报错，但 `WS_EX_TOPMOST` 都置不上 |
-| `win32gui.SetForegroundWindow()` | 有效 |
+所以 `focus()` 是按结果递进的三步，也是本项目**唯一**带 except 的地方：
+
+1. `SW_RESTORE`，窗口可能只是被最小化了；
+2. `AttachThreadInput` 把本线程挂到当前前台窗口的线程上，借它的前台资格再
+   `SetForegroundWindow`；
+3. 判断依据是**结果**而不是有没有报错 —— 放映刚起来那一刻它常常既不报错也没抢到，
+   这时用 `SwitchToThisWindow` 兜底（半公开 API，不受前台锁约束）。
+
+另外两条走不通的路：`SlideShowWindow.Activate()` 毫无反应；
+`SetWindowPos(HWND_TOPMOST)` 不报错但 `WS_EX_TOPMOST` 根本置不上，所以“永久置顶”
+在放映窗口上做不到。
 
 放映窗口的句柄用 `FindWindow("screenClass", None)` 找 —— `SlideShowWindow.HWND`
 这个属性在部分 Office 版本上调用会报 Member not found，不能依赖。
