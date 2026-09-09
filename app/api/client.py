@@ -1,7 +1,7 @@
 """REST 接口的 Python 客户端。
 
-网页界面用它，机器人那边也可以直接抄。放在路由旁边而不是 util，是因为它是
-这套端点的镜像 —— 加一个端点就得改这里，两个文件必须一起动。
+网页界面用它，机器人那边也可以直接抄。放在路由旁边而不是 util，是因为它是这两套
+端点的镜像 —— 加一个端点就得改这里，文件必须一起动。
 
     uv run python -m app.api.client        # 需要服务已经起着
 """
@@ -20,22 +20,33 @@ import httpx
 from config.settings import ServerConfig, use_utf8_output
 
 
-class PresentationClient:
-    """每个方法对应一个端点，返回值都是那个统一的 status dict。"""
+class ApiClient:
+    """管 HTTP 那点事。两个子客户端各自只写自己的路径。"""
+
+    PREFIX = ""
 
     def __init__(self, **kwargs) -> None:
         self.base_url = kwargs.get("base_url", ServerConfig.BASE_URL)
-        self.prefix = kwargs.get("prefix", ServerConfig.API_PREFIX)
         self.timeout = kwargs.get("timeout", ServerConfig.TIMEOUT)
 
     def _url(self, path: str) -> str:
-        return f"{self.base_url}{self.prefix}{path}"
+        return f"{self.base_url}{self.PREFIX}{path}"
 
-    def _get(self, path: str) -> dict:
+    def _get(self, path: str):
         return httpx.get(self._url(path), timeout=self.timeout).json()
 
     def _post(self, path: str, payload: dict | None = None) -> dict:
         return httpx.post(self._url(path), json=payload, timeout=self.timeout).json()
+
+    def monitors(self) -> list[dict]:
+        """共用端点，不带 blueprint 前缀。"""
+        return httpx.get(f"{self.base_url}/api/monitors", timeout=self.timeout).json()
+
+
+class PptClient(ApiClient):
+    """幻灯片。"""
+
+    PREFIX = "/api/ppt"
 
     def status(self) -> dict:
         return self._get("/status")
@@ -67,31 +78,63 @@ class PresentationClient:
     def focus(self) -> dict:
         return self._post("/focus")
 
-    def monitors(self) -> list[dict]:
-        return self._get("/monitors")
+    def move(self, index: int) -> dict:
+        return self._post("/monitor", {"index": index})
+
+
+class VideoClient(ApiClient):
+    """视频。"""
+
+    PREFIX = "/api/video"
+
+    def status(self) -> dict:
+        return self._get("/status")
+
+    def play(self) -> dict:
+        return self._post("/play")
+
+    def pause(self) -> dict:
+        return self._post("/pause")
+
+    def resume(self) -> dict:
+        return self._post("/resume")
+
+    def stop(self) -> dict:
+        return self._post("/stop")
+
+    def seek(self, seconds: float) -> dict:
+        return self._post("/seek", {"seconds": seconds})
+
+    def focus(self) -> dict:
+        return self._post("/focus")
 
     def move(self, index: int) -> dict:
         return self._post("/monitor", {"index": index})
 
 
 def demo_client() -> None:
-    """对着已经起着的服务走一遍：放映 -> 翻页 -> 跳转 -> 结束。"""
+    """对着已经起着的服务走一遍：视频放一段，再切去放 ppt。"""
     import time
 
-    client = PresentationClient()
-    print(f"连 {client.base_url}")
-    print("屏幕:", client.monitors())
-    print("当前状态:", client.status())
+    ppt = PptClient()
+    video = VideoClient()
+    print(f"连 {ppt.base_url}")
+    print("屏幕:", ppt.monitors())
 
-    print("开始放映:", client.show())
+    print("\n--- 先放视频 ---")
+    print("play: ", video.play())
+    time.sleep(3)
+    print("pause:", video.pause())
+    print("seek: ", video.seek(10))
+    print("resume:", video.resume())
     time.sleep(2)
-    print("下一页:", client.next())
+
+    print("\n--- 再切去放 ppt（视频应被自动关掉）---")
+    print("show:  ", ppt.show())
+    print("video: ", video.status())
+    print("next:  ", ppt.next_slide())
     time.sleep(2)
-    print("上一页:", client.previous())
-    time.sleep(2)
-    print("跳到第 2 页:", client.goto(2))
-    time.sleep(2)
-    print("结束放映:", client.stop())
+    print("stop:  ", ppt.stop())
 
 
 def main() -> None:

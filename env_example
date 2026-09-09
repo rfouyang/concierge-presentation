@@ -3,9 +3,17 @@
 # 要控制的那份 ppt。绝对路径，或相对于项目根目录的路径。
 DECK_PATH=data/deck/demo.pptx
 
+# 要播的那个视频。
+VIDEO_PATH=data/video/demo.mp4
+
+# mpv 的可执行文件。winget install shinchiro.mpv 不往 PATH 里加东西，所以要写全路径。
+# 部署到 PATH 里有 mpv 的机器上时可以留空。
+MPV_PATH=C:\Program Files\MPV Player\mpv.exe
+
 # 服务监听地址。机器人和网页界面都连这里。
 HOST=127.0.0.1
 PORT=8000
 
-# 放映投到第几块屏，编号见 GET /api/monitors。留空就是主屏。
+# 投到第几块屏，编号见 GET /api/monitors。留空就是主屏。
 MONITOR=
+VIDEO_MONITOR=

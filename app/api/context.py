@@ -1,3 +1,4 @@
-from component.presentation_application import PresentationApplication
+from component.stage import Stage
 
-presentation_context = PresentationApplication()
+# 整个进程一个舞台：ppt 和视频共用它，互斥规则也由它保证。
+stage = Stage()

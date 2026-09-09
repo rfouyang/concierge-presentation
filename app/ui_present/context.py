@@ -1,3 +1,4 @@
-from app.api.client import PresentationClient
+from app.api.client import PptClient, VideoClient
 
-presentation_client = PresentationClient()
+ppt_client = PptClient()
+video_client = VideoClient()

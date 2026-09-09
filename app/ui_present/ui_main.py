@@ -21,26 +21,39 @@ if str(BASE_DIR) not in sys.path:
 
 import gradio as gr
 
-from app.ui_present.tabs.playback_tab import PlaybackTab
+from app.ui_present.tabs.ppt_tab import PptTab
+from app.ui_present.tabs.video_tab import VideoTab
 from config.settings import ServerConfig, use_utf8_output
 
 
 class PresentationUI:
-    """页面。所有按钮都打到 REST 接口，界面自己不存任何状态。"""
+    """页面。所有按钮都打到 REST 接口，界面自己不存任何状态。
 
-    TITLE = "PPT 放映控制"
+    两个 tab 各管一半，跟 /api/ppt 和 /api/video 两个 blueprint 一一对应。
+    """
+
+    TITLE = "放映控制"
 
     def __init__(self) -> None:
-        self.playback_tab = PlaybackTab()
+        self.ppt_tab = PptTab()
+        self.video_tab = VideoTab()
 
     def build(self) -> gr.Blocks:
         with gr.Blocks(title=self.TITLE) as page:
             gr.Markdown(f"# {self.TITLE}")
-            with gr.Tab(PlaybackTab.LABEL):
-                self.playback_tab.build()
-            self.playback_tab.wire()
-            page.load(self.playback_tab.load,
-                      outputs=[self.playback_tab.info, self.playback_tab.monitor_choice])
+            with gr.Tab(PptTab.LABEL):
+                self.ppt_tab.build()
+            with gr.Tab(VideoTab.LABEL):
+                self.video_tab.build()
+
+            self.ppt_tab.wire()
+            self.video_tab.wire()
+
+            # 打开页面时各问一次状态。两个 tab 的屏幕下拉框都要等接口起来才能填。
+            page.load(self.ppt_tab.load,
+                      outputs=[self.ppt_tab.info, self.ppt_tab.monitor_choice])
+            page.load(self.video_tab.load,
+                      outputs=[self.video_tab.info, self.video_tab.monitor_choice])
         return page
 
 

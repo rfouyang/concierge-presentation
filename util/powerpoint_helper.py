@@ -21,18 +21,13 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 if str(BASE_DIR) not in sys.path:
     sys.path.insert(0, str(BASE_DIR))
 
-import ctypes
 import time
 
 import pythoncom
-import pywintypes
-import win32api
 import win32com.client
-import win32con
-import win32gui
-import win32process
 
 from config.settings import PathConfig, SlideShowConfig, use_utf8_output
+from util.window_helper import WindowHelper
 
 
 class PowerPointHelper:
@@ -88,79 +83,46 @@ class PowerPointHelper:
         return self._view().CurrentShowPosition if self.playing else 0
 
     # ---- 窗口层级 ---------------------------------------------------------
+    #
+    # 显示器枚举和「提到最前」的降级链都在 util/window_helper.py，跟 PowerPoint
+    # 无关、视频那边也用。这里只留 PowerPoint 专有的部分：放映窗口的类名，以及
+    # Office 用磅而 Windows 用像素这件事。
 
     @classmethod
     def show_hwnd(cls) -> int:
         """放映窗口的句柄。"""
-        return win32gui.FindWindow(cls.SHOW_WINDOW_CLASS, None)
+        return WindowHelper.find(cls.SHOW_WINDOW_CLASS)
 
     @property
     def foreground(self) -> bool:
-        """放映窗口是不是当前前台窗口。"""
-        return win32gui.GetForegroundWindow() == self.show_hwnd()
+        return WindowHelper.foreground(self.show_hwnd())
 
     def focus(self) -> bool:
-        """把放映窗口提到最前面，返回最后是否真的在前台。
+        """把放映窗口提到最前面。
 
         Run() 之后放映窗口并不一定在前台 —— 谁在前台就还是谁，放映就被盖住了。
-        SlideShowWindow.Activate() 毫无反应，所以只能走 Win32。
-
-        麻烦在于 SetForegroundWindow 受 Windows 前台锁约束：不持有前台的进程
-        调它会直接失败（错误码 0，没有错误文本）。从控制台跑脚本时它能成功，
-        但从 uvicorn 的工作线程调就被拒 —— 这是本项目唯一需要降级的地方，所以
-        这里破例带一个 except：先借当前前台窗口所在线程的权限抢，抢不到就用
-        SwitchToThisWindow 兜底（半公开 API，不受前台锁约束）。
+        SlideShowWindow.Activate() 毫无反应，所以只能走 Win32，细节见 WindowHelper。
         """
-        handle = self.show_hwnd()
-        win32gui.ShowWindow(handle, win32con.SW_RESTORE)
-        try:
-            self._steal_foreground(handle)
-        except pywintypes.error:
-            pass
-        # 判断依据是结果而不是有没有报错：放映刚起来那一刻，SetForegroundWindow
-        # 常常既不报错也没抢到。
-        if not self.foreground:
-            ctypes.windll.user32.SwitchToThisWindow(handle, True)
-        return self.foreground
-
-    @staticmethod
-    def _steal_foreground(handle: int) -> None:
-        """把本线程挂到前台窗口的线程上，借它的前台资格再抢。"""
-        foreground = win32gui.GetForegroundWindow()
-        target_thread, _ = win32process.GetWindowThreadProcessId(foreground)
-        own_thread = win32api.GetCurrentThreadId()
-        win32process.AttachThreadInput(target_thread, own_thread, True)
-        try:
-            win32gui.BringWindowToTop(handle)
-            win32gui.SetForegroundWindow(handle)
-        finally:
-            win32process.AttachThreadInput(target_thread, own_thread, False)
+        return WindowHelper.focus(self.show_hwnd())
 
     # ---- 显示器 -----------------------------------------------------------
 
     @staticmethod
     def monitors() -> list[tuple[int, int, int, int]]:
-        """每块屏的像素矩形 (left, top, right, bottom)，编号就是这个列表的序号
-        （从 1 开始）。副屏在主屏左边或上边时坐标是负的，属正常。"""
-        return [tuple(rect) for _, _, rect in win32api.EnumDisplayMonitors()]
+        return WindowHelper.monitors()
 
-    @classmethod
-    def primary_monitor(cls) -> int:
-        """主屏的编号。Windows 里主屏的左上角固定是 (0, 0)。"""
-        return next(index for index, rect in enumerate(cls.monitors(), start=1)
-                    if rect[0] == 0 and rect[1] == 0)
+    @staticmethod
+    def primary_monitor() -> int:
+        return WindowHelper.primary_monitor()
 
     @property
     def monitor(self) -> int:
-        """放映窗口现在在第几块屏。按窗口左上角落在谁的矩形里判断。"""
+        """放映窗口现在在第几块屏。"""
         if not self.playing:
             return 0
         window = self._application().SlideShowWindows(1)
-        x = window.Left / SlideShowConfig.POINT_PER_PIXEL
-        y = window.Top / SlideShowConfig.POINT_PER_PIXEL
-        return next(index for index, (left, top, right, bottom)
-                    in enumerate(self.monitors(), start=1)
-                    if left <= x < right and top <= y < bottom)
+        scale = SlideShowConfig.POINT_PER_PIXEL
+        return WindowHelper.monitor_at(int(window.Left / scale), int(window.Top / scale))
 
     def move(self, monitor: int) -> int:
         """把放映窗口搬到第 monitor 块屏，铺满，仍是全屏放映。
@@ -168,7 +130,7 @@ class PowerPointHelper:
         SlideShowWindow 的 Left/Top/Width/Height 可写，单位是磅，所以这里要把
         显示器的像素矩形换算过去。
         """
-        left, top, right, bottom = self.monitors()[monitor - 1]
+        left, top, right, bottom = WindowHelper.monitors()[monitor - 1]
         scale = SlideShowConfig.POINT_PER_PIXEL
         window = self._application().SlideShowWindows(1)
         window.Left = left * scale

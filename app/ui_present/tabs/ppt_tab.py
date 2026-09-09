@@ -1,4 +1,4 @@
-"""翻页面板。
+"""幻灯片面板。视频那个 tab 在 video_tab.py。
 
 只调 REST 接口，不 import component —— 界面和机器人用的是同一条路径，
 界面上能做的事机器人一定也能做。
@@ -15,13 +15,13 @@ if str(BASE_DIR) not in sys.path:
 
 import gradio as gr
 
-from app.ui_present.context import presentation_client
+from app.ui_present.context import ppt_client
 
 
-class PlaybackTab:
+class PptTab:
     """无状态：每次点击都拿接口返回的 status 重画那一行文字。"""
 
-    LABEL = "翻页控制"
+    LABEL = "幻灯片"
 
     def build(self) -> None:
         self.info = gr.Markdown()
@@ -49,17 +49,17 @@ class PlaybackTab:
 
     def wire(self) -> None:
         pairs = [
-            (self.show_button, presentation_client.show),
-            (self.focus_button, presentation_client.focus),
-            (self.stop_button, presentation_client.stop),
-            (self.refresh_button, presentation_client.status),
-            (self.previous_button, presentation_client.previous),
-            (self.previous_slide_button, presentation_client.previous_slide),
-            (self.next_button, presentation_client.next),
-            (self.next_slide_button, presentation_client.next_slide),
-            (self.black_button, lambda: presentation_client.screen("black")),
-            (self.white_button, lambda: presentation_client.screen("white")),
-            (self.normal_button, lambda: presentation_client.screen("normal")),
+            (self.show_button, ppt_client.show),
+            (self.focus_button, ppt_client.focus),
+            (self.stop_button, ppt_client.stop),
+            (self.refresh_button, ppt_client.status),
+            (self.previous_button, ppt_client.previous),
+            (self.previous_slide_button, ppt_client.previous_slide),
+            (self.next_button, ppt_client.next),
+            (self.next_slide_button, ppt_client.next_slide),
+            (self.black_button, lambda: ppt_client.screen("black")),
+            (self.white_button, lambda: ppt_client.screen("white")),
+            (self.normal_button, lambda: ppt_client.screen("normal")),
         ]
         for button, call in pairs:
             button.click(self._render(call), outputs=self.info)
@@ -73,21 +73,21 @@ class PlaybackTab:
         return lambda: self.describe(call())
 
     def on_goto(self, slide) -> str:
-        return self.describe(presentation_client.goto(int(slide)))
+        return self.describe(ppt_client.goto(int(slide)))
 
     def on_move(self, index) -> str:
-        return self.describe(presentation_client.move(int(index)))
+        return self.describe(ppt_client.move(int(index)))
 
     def refresh(self) -> str:
-        return self.describe(presentation_client.status())
+        return self.describe(ppt_client.status())
 
     def load(self) -> tuple:
         """页面打开时问一次：现在什么状态，本机有几块屏。
 
         屏幕列表不能在 build 时取 —— 那会儿接口还没起来。
         """
-        status = presentation_client.status()
-        monitors = presentation_client.monitors()
+        status = ppt_client.status()
+        monitors = ppt_client.monitors()
         choices = [
             (f"屏幕 {monitor['index']}：{monitor['width']}×{monitor['height']}"
              f"{'（主屏）' if monitor['primary'] else ''}", monitor["index"])

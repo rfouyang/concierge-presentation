@@ -1,9 +1,9 @@
-"""演示控制对外的全部能力。
+"""幻灯片控制对外的全部能力。视频那半边在 video_application.py。
 
 网页界面和机器人都通过 REST 打到这一个对象上，所以两个调用方谁也不需要自带
 业务规则。它本身几乎无状态 —— 当前放到第几页这种事，PowerPoint 自己记着。
 
-    uv run python -m component.presentation_application
+    uv run python -m component.ppt_application
 """
 
 from __future__ import annotations
@@ -17,9 +17,10 @@ if str(BASE_DIR) not in sys.path:
 
 from config.settings import PathConfig, SlideShowConfig, use_utf8_output
 from util.powerpoint_helper import PowerPointHelper
+from util.window_helper import WindowHelper
 
 
-class PresentationApplication:
+class PptApplication:
     """控制固定的那一份 ppt。所有写操作都返回同一个 status，调用方一次请求
     就能拿到刷新界面需要的全部东西。"""
 
@@ -48,20 +49,8 @@ class PresentationApplication:
         return self.status()
 
     # ---- 显示器 -----------------------------------------------------------
-
-    def monitors(self) -> list[dict]:
-        """有几块屏、编号多少、多大。调用方按 index 指定往哪块投。"""
-        primary = self.powerpoint.primary_monitor()
-        return [
-            {
-                "index": index,
-                "width": right - left,
-                "height": bottom - top,
-                "primary": index == primary,
-            }
-            for index, (left, top, right, bottom)
-            in enumerate(self.powerpoint.monitors(), start=1)
-        ]
+    #
+    # 「有几块屏」跟放的是 ppt 还是视频无关，那个在 component/stage.py 上。
 
     def move(self, monitor: int) -> dict:
         """把正在放映的窗口搬到第 monitor 块屏，顺手提到最前。"""
@@ -137,7 +126,7 @@ class PresentationApplication:
 
 def demo_application() -> None:
     """不碰 PowerPoint 的离线检查：配置接得上、屏幕模式对得上。"""
-    application = PresentationApplication()
+    application = PptApplication()
     print(f"要控制的 ppt: {application.deck}")
     print(f"文件存在: {application.deck.exists()}")
     assert application.deck == PathConfig.DECK.resolve()
@@ -147,10 +136,10 @@ def demo_application() -> None:
     print("屏幕模式映射 OK:", SlideShowConfig.SCREEN_MODES)
 
     print(f"\n放映用的屏幕: {SlideShowConfig.MONITOR or '主屏（未在 .env 指定）'}")
-    for monitor in application.monitors():
-        mark = "  <- 主屏" if monitor["primary"] else ""
-        print(f"  屏幕 {monitor['index']}: "
-              f"{monitor['width']}x{monitor['height']}{mark}")
+    primary = WindowHelper.primary_monitor()
+    for index, (left, top, right, bottom) in enumerate(WindowHelper.monitors(), start=1):
+        mark = "  <- 主屏" if index == primary else ""
+        print(f"  屏幕 {index}: {right - left}x{bottom - top}{mark}")
 
     print("\n实际放映请跑: uv run python -m util.powerpoint_helper")
 
