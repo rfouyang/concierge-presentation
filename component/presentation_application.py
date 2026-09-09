@@ -43,7 +43,8 @@ class PresentationApplication:
 
     def focus(self) -> dict:
         """放映被别的窗口盖住时，把它提回最前面。"""
-        self.powerpoint.focus()
+        if self.powerpoint.playing:
+            self.powerpoint.focus()
         return self.status()
 
     # ---- 显示器 -----------------------------------------------------------
@@ -64,8 +65,9 @@ class PresentationApplication:
 
     def move(self, monitor: int) -> dict:
         """把正在放映的窗口搬到第 monitor 块屏，顺手提到最前。"""
-        self.powerpoint.move(monitor)
-        self.powerpoint.focus()
+        if self.powerpoint.playing:
+            self.powerpoint.move(monitor)
+            self.powerpoint.focus()
         return self.status()
 
     # ---- 放映 -------------------------------------------------------------
@@ -79,26 +81,36 @@ class PresentationApplication:
         return self.status()
 
     def stop(self) -> dict:
-        self.powerpoint.exit()
+        """已经停了就什么都不做。"""
+        if self.powerpoint.playing:
+            self.powerpoint.exit()
         return self.status()
 
     # ---- 翻页 -------------------------------------------------------------
+    #
+    # 这几个都得有个正在放映的窗口才成立，没放映时 SlideShowWindows(1) 会越界。
+    # 一律先看 playing：没在放映就什么都不做，直接把 status 还回去 —— 调用方从
+    # playing 字段就能看出为什么没动，用户手动 Esc 掉放映也不会让接口 500。
 
     def next(self) -> dict:
-        self.powerpoint.next()
+        if self.powerpoint.playing:
+            self.powerpoint.next()
         return self.status()
 
     def previous(self) -> dict:
-        self.powerpoint.previous()
+        if self.powerpoint.playing:
+            self.powerpoint.previous()
         return self.status()
 
     def goto(self, slide: int) -> dict:
-        self.powerpoint.goto(slide)
+        if self.powerpoint.playing:
+            self.powerpoint.goto(slide)
         return self.status()
 
     def screen(self, mode: str) -> dict:
         """mode 取 normal / black / white。"""
-        self.powerpoint.screen(SlideShowConfig.SCREEN_MODES[mode])
+        if self.powerpoint.playing:
+            self.powerpoint.screen(SlideShowConfig.SCREEN_MODES[mode])
         return self.status()
 
 

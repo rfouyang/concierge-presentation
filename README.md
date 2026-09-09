@@ -39,6 +39,11 @@ uv run python -m app.api.api_main
  "monitor": 2, "foreground": true}
 ```
 
+翻页那几个操作都需要有个正在放映的窗口。**没在放映时它们是空操作**，返回 200 和
+当前 status（`playing: false`），不会报错 —— 用户手动按 Esc 退出放映之后，机器人
+接着发 `/api/next` 也只是什么都不发生，从 `playing` 就能看出原因。`/api/stop`
+同理，停一个已经停了的放映不算错。
+
 机器人侧最短的调用：
 
 ```bash
