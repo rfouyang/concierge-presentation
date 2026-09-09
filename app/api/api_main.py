@@ -68,6 +68,10 @@ class PresentationAPI:
         def screen(request: ScreenRequest) -> dict:
             return presentation_context.screen(request.mode)
 
+        @api.post(f"{prefix}/focus", response_model=Status, summary="把放映提到最前面")
+        def focus() -> dict:
+            return presentation_context.focus()
+
         @api.get(f"{prefix}/monitors", response_model=list[Monitor], summary="有几块屏")
         def monitors() -> list[dict]:
             return presentation_context.monitors()

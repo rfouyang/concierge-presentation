@@ -27,6 +27,7 @@ class PlaybackTab:
         self.info = gr.Markdown()
         with gr.Row():
             self.show_button = gr.Button("开始放映", variant="primary")
+            self.focus_button = gr.Button("提到最前")
             self.stop_button = gr.Button("结束放映")
             self.refresh_button = gr.Button("刷新")
         with gr.Row():
@@ -46,6 +47,7 @@ class PlaybackTab:
     def wire(self) -> None:
         pairs = [
             (self.show_button, presentation_client.show),
+            (self.focus_button, presentation_client.focus),
             (self.stop_button, presentation_client.stop),
             (self.refresh_button, presentation_client.status),
             (self.previous_button, presentation_client.previous),
@@ -95,5 +97,6 @@ class PlaybackTab:
     def describe(status: dict) -> str:
         if not status["playing"]:
             return f"**{status['deck']}** —— 未放映"
+        covered = "" if status["foreground"] else "，**被其他窗口盖住了**"
         return (f"**{status['deck']}** —— 第 {status['slide']} / {status['total']} 页"
-                f"，屏幕 {status['monitor']}")
+                f"，屏幕 {status['monitor']}{covered}")

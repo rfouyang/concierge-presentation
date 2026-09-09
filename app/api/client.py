@@ -58,6 +58,9 @@ class PresentationClient:
     def screen(self, mode: str) -> dict:
         return self._post("/screen", {"mode": mode})
 
+    def focus(self) -> dict:
+        return self._post("/focus")
+
     def monitors(self) -> list[dict]:
         return self._get("/monitors")
 

@@ -38,7 +38,13 @@ class PresentationApplication:
             "total": self.powerpoint.total,
             "playing": self.powerpoint.playing,
             "monitor": self.powerpoint.monitor,
+            "foreground": self.powerpoint.playing and self.powerpoint.foreground,
         }
+
+    def focus(self) -> dict:
+        """放映被别的窗口盖住时，把它提回最前面。"""
+        self.powerpoint.focus()
+        return self.status()
 
     # ---- 显示器 -----------------------------------------------------------
 
@@ -57,8 +63,9 @@ class PresentationApplication:
         ]
 
     def move(self, monitor: int) -> dict:
-        """把正在放映的窗口搬到第 monitor 块屏。"""
+        """把正在放映的窗口搬到第 monitor 块屏，顺手提到最前。"""
         self.powerpoint.move(monitor)
+        self.powerpoint.focus()
         return self.status()
 
     # ---- 放映 -------------------------------------------------------------

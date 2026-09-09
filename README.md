@@ -30,11 +30,13 @@ uv run python -m app.api.api_main
 | POST | `/api/previous` | |
 | POST | `/api/goto` | `{"slide": 3}` |
 | POST | `/api/screen` | `{"mode": "normal\|black\|white"}` |
+| POST | `/api/focus` | 放映被别的窗口盖住时提回最前面 |
 | GET | `/api/monitors` | 有几块屏、编号多少 |
 | POST | `/api/monitor` | `{"index": 2}` 把放映搬到那块屏 |
 
 ```json
-{"deck": "demo.pptx", "slide": 3, "total": 12, "playing": true, "monitor": 2}
+{"deck": "demo.pptx", "slide": 3, "total": 12, "playing": true,
+ "monitor": 2, "foreground": true}
 ```
 
 机器人侧最短的调用：
@@ -76,6 +78,23 @@ data/deck/                         ppt 放这里
 做法是放映起来之后改 `SlideShowWindow` 的 `Left/Top/Width/Height`（单位是磅，
 = 像素 × 0.75），窗口仍然是全屏放映。另外放映前会强制关掉演示者视图，否则
 PowerPoint 会自己把幻灯片和备注面板分到两块屏上，指定的那块未必是幻灯片。
+
+## 放映被别的窗口盖住
+
+`Run()` 之后放映窗口**不一定在前台**——谁本来在前台就还是谁。`/api/show` 和
+`/api/monitor` 都会自动把它提到最前，被盖住时再调 `POST /api/focus` 提一次，
+`/api/status` 的 `foreground` 字段能看出当前是不是被盖着。
+
+实测过三种手段，只有一种有效：
+
+| 手段 | 结果 |
+|---|---|
+| `SlideShowWindow.Activate()` | 无反应 |
+| `SetWindowPos(HWND_TOPMOST)` | 不报错，但 `WS_EX_TOPMOST` 都置不上 |
+| `win32gui.SetForegroundWindow()` | 有效 |
+
+放映窗口的句柄用 `FindWindow("screenClass", None)` 找 —— `SlideShowWindow.HWND`
+这个属性在部分 Office 版本上调用会报 Member not found，不能依赖。
 
 ## 两个设计上的取舍
 

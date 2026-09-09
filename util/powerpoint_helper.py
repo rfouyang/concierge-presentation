@@ -26,12 +26,19 @@ import time
 import pythoncom
 import win32api
 import win32com.client
+import win32con
+import win32gui
 
 from config.settings import PathConfig, SlideShowConfig, use_utf8_output
 
 
 class PowerPointHelper:
     """一份 ppt 的放映控制。deck 只存文件路径，不存 COM 句柄。"""
+
+    # 放映窗口的窗口类。PowerPoint 的编辑窗口是 PPTFrameClass，放映是这个。
+    # SlideShowWindow 在部分 Office 版本上没有 HWND 属性（调用报 Member not
+    # found），所以句柄从窗口类找，不走 COM。
+    SHOW_WINDOW_CLASS = "screenClass"
 
     def __init__(self, **kwargs) -> None:
         self.deck = Path(kwargs.get("deck") or PathConfig.DECK).resolve()
@@ -76,6 +83,29 @@ class PowerPointHelper:
     def current(self) -> int:
         """当前页码。以 PowerPoint 的说法为准，自己不记一份影子计数。"""
         return self._view().CurrentShowPosition if self.playing else 0
+
+    # ---- 窗口层级 ---------------------------------------------------------
+
+    @classmethod
+    def show_hwnd(cls) -> int:
+        """放映窗口的句柄。"""
+        return win32gui.FindWindow(cls.SHOW_WINDOW_CLASS, None)
+
+    @property
+    def foreground(self) -> bool:
+        """放映窗口是不是当前前台窗口。"""
+        return win32gui.GetForegroundWindow() == self.show_hwnd()
+
+    def focus(self) -> None:
+        """把放映窗口提到最前面。
+
+        Run() 之后放映窗口并不一定在前台 —— 谁在前台就还是谁，放映就被盖住了。
+        实测三种手段里只有 SetForegroundWindow 有效：SlideShowWindow.Activate()
+        毫无反应，SetWindowPos(HWND_TOPMOST) 连 WS_EX_TOPMOST 都置不上。
+        """
+        handle = self.show_hwnd()
+        win32gui.ShowWindow(handle, win32con.SW_SHOW)
+        win32gui.SetForegroundWindow(handle)
 
     # ---- 显示器 -----------------------------------------------------------
 
@@ -138,6 +168,7 @@ class PowerPointHelper:
         settings.ShowPresenterView = 0
         settings.Run()
         self.move(self.monitor_index or self.primary_monitor())
+        self.focus()
         return self.current
 
     def exit(self) -> None:
@@ -189,6 +220,7 @@ def demo_show(pause: float = 2.0, steps: int = 3) -> None:
 
     powerpoint.run()
     print(f"开始放映，在屏幕 {powerpoint.monitor} 上，当前第 {powerpoint.current} 页")
+    print(f"放映窗口在最前面: {powerpoint.foreground}")
 
     for _ in range(min(steps, total - 1)):
         time.sleep(pause)

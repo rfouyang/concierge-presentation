@@ -13,6 +13,7 @@ class Status(BaseModel):
     total: int = Field(description="总页数，ppt 没打开时为 0")
     playing: bool = Field(description="是否正在放映")
     monitor: int = Field(description="放映在第几块屏，没在放映时为 0")
+    foreground: bool = Field(description="放映窗口是否在最前面（没被别的窗口盖住）")
 
 
 class Monitor(BaseModel):
