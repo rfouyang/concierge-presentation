@@ -61,9 +61,14 @@ class PresentationAPI:
         def next_slide() -> dict:
             return presentation_context.next_slide()
 
-        @api.post(f"{prefix}/previous", response_model=Status, summary="上一页")
-        def previous_slide() -> dict:
+        @api.post(f"{prefix}/previous", response_model=Status, summary="上一步")
+        def previous() -> dict:
             return presentation_context.previous()
+
+        @api.post(f"{prefix}/previous-slide", response_model=Status,
+                  summary="上一张幻灯片（跳过页内动画）")
+        def previous_slide() -> dict:
+            return presentation_context.previous_slide()
 
         @api.post(f"{prefix}/goto", response_model=Status, summary="跳到指定页")
         def goto(request: GotoRequest) -> dict:

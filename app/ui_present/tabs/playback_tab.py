@@ -33,6 +33,8 @@ class PlaybackTab:
         with gr.Row():
             self.previous_button = gr.Button("← 上一步", scale=1)
             self.next_button = gr.Button("下一步 →", scale=1)
+        with gr.Row():
+            self.previous_slide_button = gr.Button("⇤ 上一张", scale=1)
             self.next_slide_button = gr.Button("下一张 ⇥", scale=1, variant="primary")
         with gr.Row():
             self.slide_number = gr.Number(label="跳到第几页", value=1, precision=0, scale=1)
@@ -52,6 +54,7 @@ class PlaybackTab:
             (self.stop_button, presentation_client.stop),
             (self.refresh_button, presentation_client.status),
             (self.previous_button, presentation_client.previous),
+            (self.previous_slide_button, presentation_client.previous_slide),
             (self.next_button, presentation_client.next),
             (self.next_slide_button, presentation_client.next_slide),
             (self.black_button, lambda: presentation_client.screen("black")),

@@ -109,8 +109,18 @@ class PresentationApplication:
         return self.status()
 
     def previous(self) -> dict:
+        """上一步。和按 Backspace 一致：有动画的页上退的是动画步骤。"""
         if self.powerpoint.playing:
             self.powerpoint.previous()
+        return self.status()
+
+    def previous_slide(self) -> dict:
+        """上一张幻灯片。跳过页内动画，页码必然 -1。
+
+        和 next_slide 对称。已经在第 1 页就什么都不做。
+        """
+        if self.powerpoint.playing and self.powerpoint.current > 1:
+            self.powerpoint.goto(self.powerpoint.current - 1)
         return self.status()
 
     def goto(self, slide: int) -> dict:

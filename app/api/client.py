@@ -55,6 +55,9 @@ class PresentationClient:
     def previous(self) -> dict:
         return self._post("/previous")
 
+    def previous_slide(self) -> dict:
+        return self._post("/previous-slide")
+
     def goto(self, slide: int) -> dict:
         return self._post("/goto", {"slide": slide})
 

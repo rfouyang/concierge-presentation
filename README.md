@@ -28,7 +28,8 @@ uv run python -m app.api.api_main
 | POST | `/api/stop` | 退出放映 |
 | POST | `/api/next` | 下一步，等同按空格：有动画的页推进的是动画 |
 | POST | `/api/next-slide` | 下一张幻灯片，跳过页内动画，页码必然 +1 |
-| POST | `/api/previous` | |
+| POST | `/api/previous` | 上一步，等同按 Backspace |
+| POST | `/api/previous-slide` | 上一张幻灯片，跳过页内动画，页码必然 -1 |
 | POST | `/api/goto` | `{"slide": 3}` |
 | POST | `/api/screen` | `{"mode": "normal\|black\|white"}` |
 | POST | `/api/focus` | 放映被别的窗口盖住时提回最前面 |
@@ -52,9 +53,13 @@ curl -X POST http://127.0.0.1:8000/api/next-slide   # 讲完一页，翻一页
 curl http://127.0.0.1:8000/api/status               # 需要确认时才查
 ```
 
-`next` 和 `next-slide` 的区别只在页内动画：前者一步步放动画（和按空格键一样），
-后者直接跳到下一张，页码必然 +1，所以「翻页后确认页码 +1」这种循环不会因为动画
-而误判。已经在最后一张时 `next-slide` 什么都不做，结束放映走 `/api/stop`。
+`next` / `previous` 和 `next-slide` / `previous-slide` 的区别在页内动画：前者一步步
+放动画（等同空格键和 Backspace），后者直接跳整张，页码必然 ±1，所以「翻页后确认
+页码变了」这种循环不会因为动画而误判。
+
+边界也不同：`next-slide` 在最后一张、`previous-slide` 在第一张都是空操作；而
+`next` 在最后一张上再按会翻到结尾黑屏，再按一次整个放映就结束了。结束放映请显式
+调 `/api/stop`。
 
 ## 目录结构
 
