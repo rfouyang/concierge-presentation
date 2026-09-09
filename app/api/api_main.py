@@ -56,6 +56,11 @@ class PresentationAPI:
         def next_slide() -> dict:
             return presentation_context.next()
 
+        @api.post(f"{prefix}/next-slide", response_model=Status,
+                  summary="下一张幻灯片（跳过页内动画）")
+        def next_slide() -> dict:
+            return presentation_context.next_slide()
+
         @api.post(f"{prefix}/previous", response_model=Status, summary="上一页")
         def previous_slide() -> dict:
             return presentation_context.previous()

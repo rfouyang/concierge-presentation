@@ -26,7 +26,8 @@ uv run python -m app.api.api_main
 | GET | `/api/status` | |
 | POST | `/api/show` | 打开 ppt 并开始放映 |
 | POST | `/api/stop` | 退出放映 |
-| POST | `/api/next` | |
+| POST | `/api/next` | 下一步，等同按空格：有动画的页推进的是动画 |
+| POST | `/api/next-slide` | 下一张幻灯片，跳过页内动画，页码必然 +1 |
 | POST | `/api/previous` | |
 | POST | `/api/goto` | `{"slide": 3}` |
 | POST | `/api/screen` | `{"mode": "normal\|black\|white"}` |
@@ -44,11 +45,16 @@ uv run python -m app.api.api_main
 接着发 `/api/next` 也只是什么都不发生，从 `playing` 就能看出原因。`/api/stop`
 同理，停一个已经停了的放映不算错。
 
-机器人侧最短的调用：
+机器人侧典型只用两个：翻页和查页码。写操作也返回 status，所以翻完页不必再查一次。
 
 ```bash
-curl -X POST http://127.0.0.1:8000/api/next
+curl -X POST http://127.0.0.1:8000/api/next-slide   # 讲完一页，翻一页
+curl http://127.0.0.1:8000/api/status               # 需要确认时才查
 ```
+
+`next` 和 `next-slide` 的区别只在页内动画：前者一步步放动画（和按空格键一样），
+后者直接跳到下一张，页码必然 +1，所以「翻页后确认页码 +1」这种循环不会因为动画
+而误判。已经在最后一张时 `next-slide` 什么都不做，结束放映走 `/api/stop`。
 
 ## 目录结构
 

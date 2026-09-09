@@ -93,8 +93,19 @@ class PresentationApplication:
     # playing 字段就能看出为什么没动，用户手动 Esc 掉放映也不会让接口 500。
 
     def next(self) -> dict:
+        """下一步。和按空格键完全一致：有动画的页上推进的是动画，页码不变。"""
         if self.powerpoint.playing:
             self.powerpoint.next()
+        return self.status()
+
+    def next_slide(self) -> dict:
+        """下一张幻灯片。跳过页内动画，页码必然 +1。
+
+        给机器人用的：讲完一页翻一页，不需要处理「翻了但页码没变」。已经在最后
+        一页就什么都不做 —— 结束放映走 /api/stop，不从这里溢出。
+        """
+        if self.powerpoint.playing and self.powerpoint.current < self.powerpoint.total:
+            self.powerpoint.goto(self.powerpoint.current + 1)
         return self.status()
 
     def previous(self) -> dict:
